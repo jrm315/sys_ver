@@ -1,8 +1,44 @@
+-- The simulation is run until one announcement is made. It then loops
+-- on the last state forver.
 MODULE main
-VAR
-    state : boolean;
-ASSIGN
-    init(state) := {FALSE, TRUE};
-    next(state) := {FALSE, TRUE};
 
-LTLSPEC G F state;
+VAR
+    -- Number represents who pays, 0 being the NSA.
+    payer_num : 0 .. 3;
+    -- The cryptographers sit c1 c3 c2 clockwise. The 1st number
+    -- is their identity (c_num). Used to check whether they are
+    -- paying.
+    c1        : crypto(1, payer_num, c3);
+    c2        : crypto(2, payer_num, c1);
+    c3        : crypto(3, payer_num, c2);
+
+ASSIGN
+    -- payer_num should stay the same for the whole trace.
+    next(payer_num) := payer_num;
+    
+
+    
+-- Model of each cryptographer.
+MODULE crypto(c_num, payer_num, crypto_left)
+
+VAR
+    paid         : boolean;
+    coin         : {heads, tails};
+    -- silent will be the initial state, before they have 
+    -- looked at the coins.
+    announcement : {silent, same, different};
+
+
+ASSIGN
+    -- Once set, paid and coin stay the sam.
+    init(paid) := c_num = payer_num;
+    next(paid) := paid;
+   
+    next(coin) := coin;
+    
+    init(announcement) := silent;
+    next(announcement) := case 
+                              (paid & (coin != crypto_left.coin)) : same;
+                              (coin = crypto_left.coin) : same;
+                              TRUE : different;
+                          esac;
