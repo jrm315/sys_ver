@@ -1,7 +1,9 @@
+-- Model of each cryptographer.
 -- The simulation is run until one announcement is made. It then loops
--- on the last state forver.
+-- on the last state forver. The coins are flipped before the first
+-- state but the cryptograpgers only announce what they see in the 
+-- second state.
 MODULE main
-
 VAR
     -- Number represents who pays, 0 being the NSA.
     payer_num : 0 .. 3;
@@ -14,31 +16,48 @@ VAR
 
 ASSIGN
     -- payer_num should stay the same for the whole trace.
-    next(payer_num) := payer_num;
-    
+    next(payer_num) := payer_num;    
 
-    
--- Model of each cryptographer.
+LTLSPEC 
+    X (payer_num != 0 <-> c1.announcement = different xor
+                          c2.announcement = different xor
+                          c3.announcement = different); 
+LTLSPEC
+    X (payer_num = 0 <-> c1.announcement = same xor
+                         c2.announcement = same xor
+                         c3.announcement = same);
+-- If the NSA pays, there are an odd number of "same" announcements 
+-- (even "differents") and if the NSA isn't paying, there are an odd
+-- number of "same" announcements. The first state is them still 
+-- deciding which announcement to make so these statements will be true
+-- from the next state onwards since the second state loops.
+
 MODULE crypto(c_num, payer_num, crypto_left)
-
 VAR
     paid         : boolean;
     coin         : {heads, tails};
     -- silent will be the initial state, before they have 
     -- looked at the coins.
     announcement : {silent, same, different};
-
+    coins_same   : boolean;
 
 ASSIGN
     -- Once set, paid and coin stay the sam.
     init(paid) := c_num = payer_num;
     next(paid) := paid;
+    
+    init(coins_same) := coin = crypto_left.coin;
+    next(coins_same) := coins_same;
    
     next(coin) := coin;
     
     init(announcement) := silent;
-    next(announcement) := case 
-                              (paid & (coin != crypto_left.coin)) : same;
-                              (coin = crypto_left.coin) : same;
-                              TRUE : different;
+    next(announcement) := case
+                              paid & coins_same : different;
+                              paid & !coins_same : same;
+                              coins_same : same;
+                              !coins_same : different;
                           esac;
+                              
+
+
